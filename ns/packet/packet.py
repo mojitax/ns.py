@@ -43,6 +43,7 @@ class Packet:
         flow_id=0,
         payload=None,
         tx_in_flight=-1,
+        encrypted=False,
     ):
         self.time = time
         self.delivered_time = last_ack_time
@@ -58,6 +59,7 @@ class Packet:
         self.lost = 0
         self.self_lost = False
         self.tx_in_flight = tx_in_flight
+        self.encrypted = encrypted
         if delivered == -1:
             self.delivered = packet_id
         else:
