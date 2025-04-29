@@ -1,37 +1,10 @@
-"""
-Implements a packet generator that simulates the sending of packets with a
-specified inter- arrival time distribution and a packet size distribution. One
-can set an initial delay and a finish time for packet generation. In addition,
-one can set the source id and flow ids for the packets generated. The
-DistPacketGenerator's `out` member variable is used to connect the generator to
-any network element with a `put()` member function.
-"""
-
+from ns.packet.aes_packet import AES_Packet
 from ns.packet.packet import Packet
 from ns.packet.crypto_module import CryptoModule
+from ns.packet.sym_packet import SymPacket
 
 class Device:
-    """Generates packets with a given inter-arrival time distribution. 
 
-    Parameters
-    ----------
-    env: simpy.Environment
-        The simulation environment.
-    element_id: str
-        the ID of this element.
-    arrival_dist: function
-        A no-parameter function that returns the successive inter-arrival times
-        of the packets.
-    size_dist: function
-        A no-parameter function that returns the successive sizes of the
-        packets.
-    initial_delay: number
-        Starts generation after an initial delay. Defaults to 0.
-    finish: number
-        Stops generation at the finish time. Defaults to infinite.
-    rec_flow: bool
-        Are we recording the statistics of packets generated?
-    """
 
     def __init__(
         self,
@@ -70,7 +43,6 @@ class Device:
         self.sym_packets = sym_packets
 
     def run(self):
-        """The generator function used in simulations."""
         yield self.env.timeout(self.initial_delay)
 
         while self.env.now < self.finish and self.sent_size < self.size:
@@ -81,7 +53,7 @@ class Device:
                 src=self.element_id,
                 flow_id=self.flow_id,
             )
-            self.env.process(self.encryption.encrypt(packet))
+            yield self.env.process(self.encryption.encrypt(packet))
             self.out.put(packet)
 
             self.packets_sent += 1
@@ -93,33 +65,37 @@ class Device:
 
             if self.debug:
                 print(
-                    f"DistPacketGenerator {self.element_id} sent packet {packet.packet_id}"
+                    f"Device {self.element_id} sent ASYMMETRIC packet {packet.packet_id}"
                     f" with size {packet.size}, "
                     f"flow_id {packet.flow_id} at time {self.env.now:.4f}."
                 )
             for i in range(self.sym_packets):
-                packet = Packet(
+                if self.debug:    
+                    print(
+                    f"Symmetric packet no. {i} out of {self.sym_packets}"
+                    )
+                sym_packet = Packet(
                     self.env.now,
                     self.size_dist(),
                     self.packets_sent,
-                    src=self.element_id,
-                    flow_id=self.flow_id,
                 )
-                self.env.process(self.sym_encryption.encrypt(packet))               
-                self.out.put(packet)
+                aes_packet = AES_Packet(sym_packet, key_packet_id=packet.packet_id, pack_num=i, all_packets=self.sym_packets)
+                yield self.env.process(self.sym_encryption.encrypt(aes_packet))               
+                self.out.put(aes_packet)
 
                 self.packets_sent += 1
                 self.sent_size += packet.size
                 
                 if self.rec_flow:
-                    self.time_rec.append(packet.time)
-                    self.size_rec.append(packet.size)
+                    self.time_rec.append(aes_packet.time)
+                    self.size_rec.append(aes_packet.size)
 
                 if self.debug:
                     print(
-                        f"DistPacketGenerator {self.element_id} sent packet {packet.packet_id}"
-                        f" with size {packet.size}, "
-                        f"flow_id {packet.flow_id} at time {self.env.now:.4f}."
+                        f"Device {self.element_id} sent SYMMETRIC packet {aes_packet.packet_id}"
+                        f" with size {aes_packet.size}, with parent {aes_packet.key_packet_id} "
+                        f" packet no. {aes_packet.pack_num + 1} out of {aes_packet.all_packets}, "
+                        f"flow_id {aes_packet.flow_id} at time {self.env.now:.4f}."
                     )
             
 

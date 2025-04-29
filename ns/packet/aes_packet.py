@@ -1,20 +1,6 @@
 from .packet import Packet
 
 class AES_Packet(Packet):
-    """
-    ABE_Packet extends the Packet class by adding additional fields related to 
-    encryption and security mechanisms.
-    
-    Parameters
-    ----------
-    packet: Packet
-        The original packet from which data is copied.
-    abe_encryption: bool
-        Indicates whether ABE encryption is applied.
-    security_level: str
-        Defines the security level (e.g., "low", "medium", "high").
-    """
-
     def __init__(self, packet: Packet, key_packet_id: int = 0, pack_num: int = 0, all_packets: int = 0):
         super().__init__(
             time=packet.time,
